@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sonic r</title>
+<style>
+@font-face { font-family: 'Console Square'; src: url('fonts/ConsoleSquare-Regular.otf') format('opentype'); font-weight: normal; font-style: normal; font-display: swap; }
+html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: 'Console Square', Arial, sans-serif; }
+#menu { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
+.btn { background: transparent; font: inherit; cursor: pointer; border-style: solid; border-width: 4px; }
+.big { width: 230px; height: 62px; font-size: 15px; }
+#pickBtn { color: #22b455; border-color: #22b455; }
+#playBtn { color: #1e9be9; border-color: #1e9be9; }
+#playBtn:disabled { opacity: 0.35; cursor: default; }
+#arrow { color: #1e9be9; font-size: 28px; line-height: 1; }
+#status { min-height: 20px; font-size: 14px; color: #888; max-width: 90vw; text-align: center; }
+#info { position: fixed; left: 8px; bottom: 8px; font-size: 14px; color: #888; line-height: 1.4; }
+#creditsBtn { margin-top: 6px; width: 100px; height: 34px; font-size: 14px; border-width: 3px; color: #c4163f; border-color: #8b0d27; }
+#credits { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.96); align-items: center; justify-content: center; flex-direction: column; gap: 16px; padding: 24px; box-sizing: border-box; text-align: center; font-size: 16px; line-height: 1.5; }
+#credits p { max-width: 560px; margin: 0; }
+#closeBtn { width: 100px; height: 34px; font-size: 14px; border-width: 3px; color: #c4163f; border-color: #8b0d27; }
+#canvas { display: none; position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+#err { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 35vh; overflow: auto; background: #300; color: #fbb; font-size: 13px; padding: 8px; white-space: pre-wrap; box-sizing: border-box; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="menu">
+  <h1>sonic r</h1>
+  <button id="pickBtn" class="btn big">select folder/file</button>
+  <div id="arrow">&#8595;</div>
+  <button id="playBtn" class="btn big" disabled>play</button>
+  <div id="status"></div>
+  <input type="file" id="pick" webkitdirectory multiple hidden>
+  <div id="info">
+    <div>v0.1</div>
+    <div>updated on 11/12/2026</div>
+    <button id="creditsBtn" class="btn">credits</button>
+  </div>
+</div>
+<div id="credits">
+  <p>the game engine is a pc reimplementation of sonic r by jnmartin84 (github.com/jnmartin84/sonic-r), compiled to the web here.</p>
+  <p>sonic r, its characters and its game data belong to sega. this site contains none of it. you pick your own copy of the game and it stays in your browser, it is never uploaded.</p>
+  <p>font: console square by puzzylpiece, open font license.</p>
+  <p>not affiliated with or endorsed by sega. free and non-commercial, no selling.</p>
+  <button id="closeBtn" class="btn">close</button>
+</div>
+<canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+<pre id="err"></pre>
+<script>
+var errBox = document.getElementById('err');
+function showErr(t) {
+  errBox.style.display = 'block';
+  errBox.textContent = (errBox.textContent + t + '\n').slice(-4000);
+}
+window.addEventListener('error', function (e) { showErr(String(e.message || e)); });
+window.addEventListener('unhandledrejection', function (e) { showErr(String(e.reason)); });
+var runtimeReady = false;
+var Module = {
+  noInitialRun: true,
+  canvas: document.getElementById('canvas'),
+  print: function (t) { console.log(t); },
+  printErr: function (t) { console.warn(t); showErr(t); },
+  onRuntimeInitialized: function () { runtimeReady = true; }
+};
+</script>
+{{{ SCRIPT }}}
+<script>
+var pickBtn = document.getElementById('pickBtn');
+var playBtn = document.getElementById('playBtn');
+var pick = document.getElementById('pick');
+var statusEl = document.getElementById('status');
+var menu = document.getElementById('menu');
+var canvas = document.getElementById('canvas');
+var creditsEl = document.getElementById('credits');
+var allowed = { GENERAL: 1, ISLAND: 1, CITY: 1, RUIN: 1, FACTORY: 1, EMERALD: 1, AI: 1, BIN: 1, SOUND: 1 };
+var loaded = false;
+var busy = false;
+
+function setStatus(t) { statusEl.textContent = t; }
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+pickBtn.addEventListener('click', function () { if (!busy) pick.click(); });
+
+document.getElementById('creditsBtn').addEventListener('click', function () { creditsEl.style.display = 'flex'; });
+document.getElementById('closeBtn').addEventListener('click', function () { creditsEl.style.display = 'none'; });
+
+pick.addEventListener('change', async function () {
+  var files = Array.from(pick.files || []);
+  if (!files.length || busy) return;
+  busy = true;
+  loaded = false;
+  playBtn.disabled = true;
+  try {
+    var base = null;
+    var depth = -1;
+    for (var i = 0; i < files.length; i++) {
+      var up = (files[i].webkitRelativePath || files[i].name).split('/').map(function (s) { return s.toUpperCase(); });
+      var n = up.length;
+      if (n >= 2 && up[n - 2] === 'GENERAL' && up[n - 1] === 'SONICR.BIT') {
+        depth = n - 2;
+        base = up.slice(0, depth).join('/');
+        break;
+      }
+    }
+    if (depth < 0) {
+      setStatus('this does not look like the sonic r pc game folder (GENERAL/SONICR.BIT not found)');
+      busy = false;
+      return;
+    }
+    while (!runtimeReady) { await sleep(100); }
+    var FS = Module.FS;
+    FS.mkdirTree('/game');
+    var todo = [];
+    for (var j = 0; j < files.length; j++) {
+      var parts = (files[j].webkitRelativePath || files[j].name).split('/').map(function (s) { return s.toUpperCase(); });
+      if (parts.length < depth + 2) continue;
+      if (parts.slice(0, depth).join('/') !== base) continue;
+      var rest = parts.slice(depth);
+      if (!allowed[rest[0]]) continue;
+      todo.push({ file: files[j], path: '/game/' + rest.join('/') });
+    }
+    for (var k = 0; k < todo.length; k++) {
+      var p = todo[k].path;
+      FS.mkdirTree(p.substring(0, p.lastIndexOf('/')));
+      var buf = new Uint8Array(await todo[k].file.arrayBuffer());
+      FS.writeFile(p, buf);
+      if (k % 10 === 0) {
+        setStatus('loading ' + (k + 1) + ' / ' + todo.length);
+        await sleep(0);
+      }
+    }
+    loaded = true;
+    playBtn.disabled = false;
+    setStatus('ready (' + todo.length + ' files)');
+  } catch (e) {
+    showErr(String(e));
+    setStatus('something went wrong while loading, see the red box');
+  }
+  busy = false;
+});
+
+playBtn.addEventListener('click', function () {
+  if (!loaded) return;
+  menu.style.display = 'none';
+  canvas.style.display = 'block';
+  try {
+    Module.FS.chdir('/game');
+    Module.callMain([]);
+  } catch (e) {
+    showErr(String(e));
+  }
+});
+</script>
+</body>
+</html>

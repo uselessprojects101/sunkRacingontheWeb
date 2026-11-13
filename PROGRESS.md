@@ -15,3 +15,8 @@
 - first emscripten build compiles and links with no warnings (build.sh)
 - fixed two mismatched function declarations that would crash in wasm
 - not yet run in a browser: needs a page with a file picker for the game files
+
+## update 2
+- page shell with folder picker, play button, credits and console square font (web/shell.html)
+- local test: game starts in the browser and reaches the select mode screen
+- not yet tested: racing, sound, controls, saves, speed
