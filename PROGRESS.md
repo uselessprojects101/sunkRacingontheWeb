@@ -20,3 +20,7 @@
 - page shell with folder picker, play button, credits and console square font (web/shell.html)
 - local test: game starts in the browser and reaches the select mode screen
 - not yet tested: racing, sound, controls, saves, speed
+
+## update 3
+- music works: page loads adx tracks from any folder named music (v0.2)
+- next: lan/online play (needs a browser-friendly network layer)
