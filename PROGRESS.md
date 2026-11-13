@@ -24,3 +24,10 @@
 ## update 3
 - music works: page loads adx tracks from any folder named music (v0.2)
 - next: lan/online play (needs a browser-friendly network layer)
+
+## update 4
+- lan works in two tabs on one pc: join, lobby, race start (v0.3)
+- web network layer: net_transport_web.c + web/net.js (peerjs, room from #name in the link)
+- network.c patched: no receive thread, usleep becomes emscripten_sleep
+- not yet tested: two real devices over the internet
+- next: host/guest pages from the mockups, player dots, names

@@ -34,7 +34,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   <div id="status"></div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.2</div>
+    <div>v0.3</div>
     <div>updated on 11/12/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
@@ -48,6 +48,8 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 </div>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <pre id="err"></pre>
+<script src="peerjs.min.js"></script>
+<script src="net.js"></script>
 <script>
 var errBox = document.getElementById('err');
 function showErr(t) {
@@ -61,7 +63,7 @@ var Module = {
   noInitialRun: true,
   canvas: document.getElementById('canvas'),
   print: function (t) { console.log(t); },
-  printErr: function (t) { console.warn(t); showErr(t); },
+  printErr: function (t) { console.warn(t); if (t.indexOf('immediate mode emulation') < 0) showErr(t); },
   onRuntimeInitialized: function () { runtimeReady = true; }
 };
 </script>

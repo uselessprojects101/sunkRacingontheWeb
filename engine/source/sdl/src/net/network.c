@@ -23,6 +23,10 @@
 #include <string.h>
 #include <unistd.h>
 #include "endian_util.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#define usleep(us) emscripten_sleep(((us) / 1000) > 0 ? ((us) / 1000) : 1)
+#endif
 
 extern void platform_pump_events(void);
 
@@ -125,6 +129,9 @@ static void *net_recv_thread_func(void *arg)
 void NetRecvThread_Start(void)
 {
     if (s_threadRunning) return;
+#ifdef __EMSCRIPTEN__
+    return;
+#endif
     s_queueHead = 0;
     s_queueTail = 0;
     s_threadRunning = 1;
