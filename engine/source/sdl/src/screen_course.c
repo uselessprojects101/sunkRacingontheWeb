@@ -16,7 +16,7 @@ extern void SetupMenuTexturesD3D(void);
 extern void FinalizeMenuTexturesD3D(void);
 extern void WaitForFrameCap(void);
 extern void platform_pump_events(void);
-extern void platform_poll_events(unsigned char *buf, int len);
+extern int platform_poll_events(unsigned char *buf, int len);
 extern void StopCD(void);
 extern int g_lastCourseSelection;       /* 0x0068AF94 */
 

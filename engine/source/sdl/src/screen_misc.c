@@ -74,7 +74,7 @@ void RenderCharacterOnPodium(int xOff, int yOff, int zOffset,
                              Player *player);               /* 0x4437FC */
 void RenderResultsScreen(int screenMode, int playerOffset); /* 0x489D18 */
 void EnumNetworkSessions(int flag);                         /* 0x487180 */
-void OpenNetworkSession(int sessionIdx);                    /* 0x4871B4 */
+int OpenNetworkSession(int sessionIdx);                    /* 0x4871B4 */
 void InitNetworkGame(void);                                 /* 0x487A38 */
 void UpdateNetworkSync(const void *data, int len);          /* 0x487644 */
 void StartNetworkThread(void);                              /* 0x487674 */

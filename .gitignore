@@ -40,3 +40,5 @@ mods/
 node_modules/
 build/
 *:Zone.Identifier
+*.log
+dist/

@@ -10,3 +10,8 @@
 
 ## next
 - read main loop and renderer, then first emscripten build
+
+## update
+- first emscripten build compiles and links with no warnings (build.sh)
+- fixed two mismatched function declarations that would crash in wasm
+- not yet run in a browser: needs a page with a file picker for the game files
