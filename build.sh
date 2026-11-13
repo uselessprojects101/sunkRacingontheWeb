@@ -10,3 +10,6 @@ emcc -O2 -w -std=gnu11 -D_GNU_SOURCE -DSONICR_SDL -I"$SRC" $FILES -o dist/index.
   -sEXPORTED_RUNTIME_METHODS=callMain,FS,IDBFS --shell-file web/shell.html
 mkdir -p dist/fonts
 cp web/fonts/ConsoleSquare-Regular.otf dist/fonts/
+mkdir -p docs
+cp -r dist/. docs/
+touch docs/.nojekyll
