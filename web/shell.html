@@ -23,6 +23,16 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 #closeBtn { width: 100px; height: 34px; font-size: 14px; border-width: 3px; color: #c4163f; border-color: #8b0d27; }
 #canvas { display: none; position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 35vh; overflow: auto; background: #300; color: #fbb; font-size: 13px; padding: 8px; white-space: pre-wrap; box-sizing: border-box; z-index: 10; }
+#mpBtn { display: none; position: fixed; right: 8px; bottom: 8px; width: 190px; height: 58px; font-size: 15px; color: #b24cc8; border-color: #a43fb0; }
+#mp { display: none; position: fixed; inset: 0; background: #000; z-index: 5; }
+#mpHead { position: absolute; left: 0; top: 0; border: 4px solid #a43fb0; color: #b24cc8; padding: 14px 24px; font-size: 18px; }
+#profile { display: none; position: absolute; left: 8px; top: 110px; width: 290px; height: 420px; border: 4px solid #8b0d27; color: #c4163f; box-sizing: border-box; }
+#profileTitle { text-align: center; padding: 16px 0; border-bottom: 4px solid #8b0d27; font-size: 20px; }
+#profile label { display: block; padding: 16px 12px; font-size: 16px; }
+#nameIn { background: transparent; border: 0; border-bottom: 3px solid #8b0d27; color: #c4163f; font: inherit; width: 150px; outline: none; }
+#hostBtn { position: absolute; left: 40px; right: 40px; top: 100px; height: 110px; font-size: 34px; color: #22b455; border-color: #22b455; padding: 0 12px; }
+#hostBtn.link { font-size: 18px; word-break: break-all; }
+#mpBack { position: absolute; left: 8px; bottom: 8px; width: 90px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
 </style>
 </head>
 <body>
@@ -32,10 +42,15 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   <div id="arrow">&#8595;</div>
   <button id="playBtn" class="btn big" disabled>play</button>
   <div id="status"></div>
+  <button id="mpBtn" class="btn">multiplayer</button>
+  <div id="profile">
+    <div id="profileTitle">profile</div>
+    <label>name: <input id="nameIn" maxlength="12" autocomplete="off"></label>
+  </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.3</div>
-    <div>updated on 11/12/2026</div>
+    <div>v0.5</div>
+    <div>updated on 11/13/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
 </div>
@@ -45,6 +60,11 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   <p>font: console square by puzzylpiece, open font license.</p>
   <p>not affiliated with or endorsed by sega. free and non-commercial, no selling.</p>
   <button id="closeBtn" class="btn">close</button>
+</div>
+<div id="mp">
+  <div id="mpHead">welcome to multiplayer mode</div>
+  <button id="hostBtn" class="btn">host</button>
+  <button id="mpBack" class="btn">back</button>
 </div>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <pre id="err"></pre>
@@ -76,6 +96,14 @@ var statusEl = document.getElementById('status');
 var menu = document.getElementById('menu');
 var canvas = document.getElementById('canvas');
 var creditsEl = document.getElementById('credits');
+var mpBtn = document.getElementById('mpBtn');
+var mpEl = document.getElementById('mp');
+var hostBtn = document.getElementById('hostBtn');
+var hosting = false;
+var inviteLink = '';
+var nameIn = document.getElementById('nameIn');
+var profileEl = document.getElementById('profile');
+var profileTitle = document.getElementById('profileTitle');
 var allowed = { GENERAL: 1, ISLAND: 1, CITY: 1, RUIN: 1, FACTORY: 1, EMERALD: 1, AI: 1, BIN: 1, SOUND: 1 };
 var loaded = false;
 var busy = false;
@@ -94,6 +122,7 @@ pick.addEventListener('change', async function () {
   busy = true;
   loaded = false;
   playBtn.disabled = true;
+  mpBtn.style.display = 'none';
   try {
     var base = null;
     var depth = -1;
@@ -140,6 +169,7 @@ pick.addEventListener('change', async function () {
     }
     loaded = true;
     playBtn.disabled = false;
+    mpBtn.style.display = 'block';
     setStatus('ready (' + todo.length + ' files)');
   } catch (e) {
     showErr(String(e));
@@ -151,12 +181,69 @@ pick.addEventListener('change', async function () {
 playBtn.addEventListener('click', function () {
   if (!loaded) return;
   menu.style.display = 'none';
+  mpEl.style.display = 'none';
   canvas.style.display = 'block';
   try {
     Module.FS.chdir('/game');
-    Module.callMain([]);
+    Module.callMain(gameArgs());
   } catch (e) {
     showErr(String(e));
+  }
+});
+
+function updateProfile() {
+  var inRoom = location.hash.length > 1;
+  profileEl.style.display = inRoom ? 'block' : 'none';
+  profileTitle.textContent = hosting ? 'profile' : 'info';
+}
+
+window.addEventListener('hashchange', updateProfile);
+
+function gameArgs() {
+  if (location.hash.length <= 1) return [];
+  var n = nameIn.value.replace(/[^A-Za-z0-9 _.-]/g, '').trim().slice(0, 12);
+  try { localStorage.setItem('sunkr_name', n); } catch (e) {}
+  return n ? ['--username', n] : [];
+}
+
+try { nameIn.value = localStorage.getItem('sunkr_name') || ''; } catch (e) {}
+updateProfile();
+
+function randomRoom() {
+  var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  var a = new Uint8Array(10);
+  crypto.getRandomValues(a);
+  var out = '';
+  for (var i = 0; i < a.length; i++) out += chars.charAt(a[i] % chars.length);
+  return out;
+}
+
+mpBtn.addEventListener('click', function () { mpEl.style.display = 'block'; });
+document.getElementById('mpBack').addEventListener('click', function () { mpEl.style.display = 'none'; });
+
+hostBtn.addEventListener('click', function () {
+  if (!hosting) {
+    history.replaceState(null, '', '#' + randomRoom());
+    hosting = true;
+    inviteLink = location.href;
+    hostBtn.textContent = inviteLink;
+    hostBtn.classList.add('link');
+    mpBtn.textContent = 'hosting';
+    updateProfile();
+    return;
+  }
+  var done = function () {
+    hostBtn.textContent = 'copied';
+    hostBtn.classList.remove('link');
+    setTimeout(function () {
+      hostBtn.textContent = inviteLink;
+      hostBtn.classList.add('link');
+    }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(inviteLink).then(done, function () { window.prompt('copy this link', inviteLink); });
+  } else {
+    window.prompt('copy this link', inviteLink);
   }
 });
 </script>

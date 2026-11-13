@@ -31,3 +31,9 @@
 - network.c patched: no receive thread, usleep becomes emscripten_sleep
 - not yet tested: two real devices over the internet
 - next: host/guest pages from the mockups, player dots, names
+
+## update 5
+- multiplayer screen with invite link and hosting indicator (v0.5)
+- profile box on the main page when the address has a #room, name passed to the game with --username
+- names show over racers in lan races
+- next: saved game files and saves in the browser, clear saved files button, guest page, player dots
