@@ -8312,3 +8312,35 @@ void WebAutoSaveTick(void)
     }
 }
 #endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+EM_JS(void, js_perf, (int fps, int avg, int worst), {
+    if (window.SonicRPerf) window.SonicRPerf(fps, avg, worst);
+});
+
+void WebFrameStats(int workMs)
+{
+    static double s_start = 0.0;
+    static int s_frames = 0;
+    static int s_sum = 0;
+    static int s_worst = 0;
+    double now = emscripten_get_now();
+    if (s_start == 0.0) {
+        s_start = now;
+    }
+    s_frames++;
+    s_sum += workMs;
+    if (workMs > s_worst) {
+        s_worst = workMs;
+    }
+    if (now - s_start >= 1000.0) {
+        js_perf(s_frames, s_sum / s_frames, s_worst);
+        s_start = now;
+        s_frames = 0;
+        s_sum = 0;
+        s_worst = 0;
+    }
+}
+#endif

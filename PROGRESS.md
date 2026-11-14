@@ -43,3 +43,7 @@
 - clear saved files button under play
 - autosave to slot 1 and autoload at start (engine patch in init.c, screen_misc.c, screens.c) (v0.7)
 - next: guest page from the mockup, player dots, bug sweep
+
+## update 7
+- v0.8: hidden fps and frame time readout (add ?fps to the address) to measure performance on low end devices
+- next: pick performance fixes from the numbers, then guest page and player dots

@@ -24,6 +24,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 #canvas { display: none; position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 35vh; overflow: auto; background: #300; color: #fbb; font-size: 13px; padding: 8px; white-space: pre-wrap; box-sizing: border-box; z-index: 10; }
 #clearBtn { display: none; width: 200px; height: 32px; font-size: 13px; border-width: 3px; color: #777; border-color: #444; }
+#perf { display: none; position: fixed; right: 8px; top: 8px; z-index: 9; color: #3d3; background: rgba(0, 0, 0, 0.6); font-size: 13px; padding: 4px 8px; pointer-events: none; }
 #mpBtn { display: none; position: fixed; right: 8px; bottom: 8px; width: 190px; height: 58px; font-size: 15px; color: #b24cc8; border-color: #a43fb0; }
 #mp { display: none; position: fixed; inset: 0; background: #000; z-index: 5; }
 #mpHead { position: absolute; left: 0; top: 0; border: 4px solid #a43fb0; color: #b24cc8; padding: 14px 24px; font-size: 18px; }
@@ -51,7 +52,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.7</div>
+    <div>v0.8</div>
     <div>updated on 11/13/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
@@ -70,6 +71,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 </div>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <pre id="err"></pre>
+<div id="perf"></div>
 <script src="peerjs.min.js"></script>
 <script src="net.js"></script>
 <script src="store.js"></script>
@@ -240,6 +242,15 @@ function gameArgs() {
 
 try { nameIn.value = localStorage.getItem('sunkr_name') || ''; } catch (e) {}
 updateProfile();
+
+(function () {
+  if (location.search.indexOf('fps') < 0) return;
+  var el = document.getElementById('perf');
+  el.style.display = 'block';
+  window.SonicRPerf = function (fps, avg, worst) {
+    el.textContent = fps + ' fps | work ' + avg + ' ms | worst ' + worst + ' ms';
+  };
+})();
 
 function randomRoom() {
   var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';

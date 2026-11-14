@@ -30,6 +30,7 @@ void platform_pump_events(void);
 
 extern void LoadTPageRGB(int tpage, const char *filename);
 void WebAutoSaveTick(void);
+void WebFrameStats(int workMs);
 extern void SetTitleTextureFile(const char *path);
 
 /**
@@ -52,6 +53,7 @@ void WaitForFrameCap(void)
 #elif defined(__EMSCRIPTEN__)
     DWORD now = timeGetTime();
     int elapsed = (int)(now - g_currentTime);
+    WebFrameStats(elapsed);
     int remaining = 33 - elapsed;
     WebAutoSaveTick();
     emscripten_sleep(remaining > 0 ? remaining : 0);
