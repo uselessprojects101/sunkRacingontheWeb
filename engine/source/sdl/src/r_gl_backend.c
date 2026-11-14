@@ -26,6 +26,35 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+EM_JS(void, js_perf2, (int drawMs10, int polys), {
+    if (window.SonicRPerf2) window.SonicRPerf2(drawMs10 / 10, polys);
+});
+
+static double s_drawMs = 0.0;
+static int s_drawPolys = 0;
+static int s_reportFrames = 0;
+static double s_reportStart = 0.0;
+
+void WebDrawReport(void)
+{
+    double now = emscripten_get_now();
+    if (s_reportStart == 0.0) {
+        s_reportStart = now;
+    }
+    s_reportFrames++;
+    if (now - s_reportStart >= 1000.0) {
+        js_perf2((int)(s_drawMs * 10.0 / s_reportFrames), s_drawPolys / s_reportFrames);
+        s_reportStart = now;
+        s_reportFrames = 0;
+        s_drawMs = 0.0;
+        s_drawPolys = 0;
+    }
+}
+#endif
+
 /* Forward declarations for existing frame functions in render_gl.c */
 extern void BeginFrame(void);
 extern void EndFrame(void);
@@ -465,6 +494,9 @@ void R_DrawTriFan(const RenderVertex *v, int count)
         return;
     }
 
+#ifdef __EMSCRIPTEN__
+    double webT0 = emscripten_get_now();
+#endif
     R_FlushState();
 
     glBegin(GL_TRIANGLE_FAN);
@@ -472,6 +504,10 @@ void R_DrawTriFan(const RenderVertex *v, int count)
         R_EmitVertex(&v[i]);
     }
     glEnd();
+#ifdef __EMSCRIPTEN__
+    s_drawMs += emscripten_get_now() - webT0;
+    s_drawPolys++;
+#endif
 }
 
 void R_DrawTri(const RenderVertex v[3])

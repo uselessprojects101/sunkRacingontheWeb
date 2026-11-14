@@ -52,7 +52,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.8</div>
+    <div>v0.9</div>
     <div>updated on 11/13/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
@@ -247,8 +247,18 @@ updateProfile();
   if (location.search.indexOf('fps') < 0) return;
   var el = document.getElementById('perf');
   el.style.display = 'block';
+  var a = '';
+  var b = '';
+  function show() {
+    el.textContent = a + (b ? ' | ' + b : '');
+  }
   window.SonicRPerf = function (fps, avg, worst) {
-    el.textContent = fps + ' fps | work ' + avg + ' ms | worst ' + worst + ' ms';
+    a = fps + ' fps | work ' + avg + ' ms | worst ' + worst + ' ms';
+    show();
+  };
+  window.SonicRPerf2 = function (ms, polys) {
+    b = 'drawing ' + ms + ' ms | ' + polys + ' polys';
+    show();
   };
 })();
 

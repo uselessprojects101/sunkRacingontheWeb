@@ -47,3 +47,7 @@
 ## update 7
 - v0.8: hidden fps and frame time readout (add ?fps to the address) to measure performance on low end devices
 - next: pick performance fixes from the numbers, then guest page and player dots
+
+## update 8
+- v0.9: readout also shows drawing ms and polygons per frame (add ?fps)
+- next: if drawing time dominates, batch polygons into fewer draw calls
