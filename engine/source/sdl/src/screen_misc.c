@@ -8272,3 +8272,43 @@ int ResultsScreen(int screenType)
         WaitForFrameCap();
     }
 }
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+void WebAutoLoad(void)
+{
+    FILE *fp = fOpen(s_saveFilenames[0], "rb");
+    if (fp == NULL) {
+        return;
+    }
+    g_configPtrTable[0] = g_configSlotStorage[0];
+    fRead(g_configPtrTable[0], 0x8A8, 1, fp);
+    bswap32_arr(g_configPtrTable[0], 554);
+    fClose(fp);
+    LoadConfigSlot(0);
+    LoadAllGhostTimes();
+}
+
+void WebAutoSaveTick(void)
+{
+    static double s_next = 0.0;
+    static int s_last[554];
+    static int s_have = 0;
+    double now = emscripten_get_now();
+    if (now < s_next) {
+        return;
+    }
+    s_next = now + 5000.0;
+    if (!s_have) {
+        memcpy(s_last, g_saveBlock, sizeof(s_last));
+        s_have = 1;
+        return;
+    }
+    if (memcmp(s_last, g_saveBlock, sizeof(s_last)) == 0) {
+        return;
+    }
+    if (SaveConfigSlot(0)) {
+        memcpy(s_last, g_saveBlock, sizeof(s_last));
+    }
+}
+#endif

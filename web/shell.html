@@ -23,6 +23,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 #closeBtn { width: 100px; height: 34px; font-size: 14px; border-width: 3px; color: #c4163f; border-color: #8b0d27; }
 #canvas { display: none; position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 35vh; overflow: auto; background: #300; color: #fbb; font-size: 13px; padding: 8px; white-space: pre-wrap; box-sizing: border-box; z-index: 10; }
+#clearBtn { display: none; width: 200px; height: 32px; font-size: 13px; border-width: 3px; color: #777; border-color: #444; }
 #mpBtn { display: none; position: fixed; right: 8px; bottom: 8px; width: 190px; height: 58px; font-size: 15px; color: #b24cc8; border-color: #a43fb0; }
 #mp { display: none; position: fixed; inset: 0; background: #000; z-index: 5; }
 #mpHead { position: absolute; left: 0; top: 0; border: 4px solid #a43fb0; color: #b24cc8; padding: 14px 24px; font-size: 18px; }
@@ -41,6 +42,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   <button id="pickBtn" class="btn big">select folder/file</button>
   <div id="arrow">&#8595;</div>
   <button id="playBtn" class="btn big" disabled>play</button>
+  <button id="clearBtn" class="btn">clear saved files</button>
   <div id="status"></div>
   <button id="mpBtn" class="btn">multiplayer</button>
   <div id="profile">
@@ -49,7 +51,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.5</div>
+    <div>v0.7</div>
     <div>updated on 11/13/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
@@ -70,6 +72,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 <pre id="err"></pre>
 <script src="peerjs.min.js"></script>
 <script src="net.js"></script>
+<script src="store.js"></script>
 <script>
 var errBox = document.getElementById('err');
 function showErr(t) {
@@ -99,6 +102,7 @@ var creditsEl = document.getElementById('credits');
 var mpBtn = document.getElementById('mpBtn');
 var mpEl = document.getElementById('mp');
 var hostBtn = document.getElementById('hostBtn');
+var clearBtn = document.getElementById('clearBtn');
 var hosting = false;
 var inviteLink = '';
 var nameIn = document.getElementById('nameIn');
@@ -143,6 +147,16 @@ pick.addEventListener('change', async function () {
     while (!runtimeReady) { await sleep(100); }
     var FS = Module.FS;
     FS.mkdirTree('/game');
+    var store = window.SonicRStore;
+    var persist = !!(store && store.available());
+    if (persist) {
+      try {
+        await store.clearData();
+      } catch (e0) {
+        persist = false;
+        showErr('could not use saved files: ' + e0);
+      }
+    }
     var todo = [];
     for (var j = 0; j < files.length; j++) {
       var parts = (files[j].webkitRelativePath || files[j].name).split('/').map(function (s) { return s.toUpperCase(); });
@@ -162,15 +176,32 @@ pick.addEventListener('change', async function () {
       FS.mkdirTree(p.substring(0, p.lastIndexOf('/')));
       var buf = new Uint8Array(await todo[k].file.arrayBuffer());
       FS.writeFile(p, buf);
+      if (persist) {
+        try {
+          await store.saveData(p, buf);
+        } catch (e1) {
+          persist = false;
+          showErr('could not save files for next time: ' + e1);
+        }
+      }
       if (k % 10 === 0) {
         setStatus('loading ' + (k + 1) + ' / ' + todo.length);
         await sleep(0);
       }
     }
+    if (persist) {
+      try {
+        await store.markComplete();
+      } catch (e2) {
+        persist = false;
+        showErr('could not save files for next time: ' + e2);
+      }
+    }
     loaded = true;
     playBtn.disabled = false;
     mpBtn.style.display = 'block';
-    setStatus('ready (' + todo.length + ' files)');
+    clearBtn.style.display = persist ? 'block' : 'none';
+    setStatus('ready (' + todo.length + ' files' + (persist ? ', saved for next time' : '') + ')');
   } catch (e) {
     showErr(String(e));
     setStatus('something went wrong while loading, see the red box');
@@ -185,6 +216,7 @@ playBtn.addEventListener('click', function () {
   canvas.style.display = 'block';
   try {
     Module.FS.chdir('/game');
+    if (window.SonicRStore && window.SonicRStore.available()) window.SonicRStore.startSaveSync(Module.FS);
     Module.callMain(gameArgs());
   } catch (e) {
     showErr(String(e));
@@ -246,6 +278,49 @@ hostBtn.addEventListener('click', function () {
     window.prompt('copy this link', inviteLink);
   }
 });
+
+clearBtn.addEventListener('click', async function () {
+  if (busy) return;
+  if (!window.confirm('remove the saved game files from this browser? your game saves are kept.')) return;
+  try {
+    await window.SonicRStore.clearData();
+  } catch (e) {
+    showErr(String(e));
+    return;
+  }
+  loaded = false;
+  playBtn.disabled = true;
+  mpBtn.style.display = 'none';
+  clearBtn.style.display = 'none';
+  setStatus('saved files removed, pick your folder again');
+});
+
+(async function initStore() {
+  var store = window.SonicRStore;
+  if (!store || !store.available()) return;
+  busy = true;
+  try {
+    while (!runtimeReady) { await sleep(100); }
+    var FS = Module.FS;
+    FS.mkdirTree('/game');
+    await store.restoreSaves(FS);
+    if (await store.hasData()) {
+      setStatus('loading saved files...');
+      var n = await store.restoreData(FS, function (c) {
+        if (c % 10 === 0) setStatus('loading saved files ' + c);
+      });
+      loaded = true;
+      playBtn.disabled = false;
+      mpBtn.style.display = 'block';
+      clearBtn.style.display = 'block';
+      setStatus('ready (' + n + ' saved files)');
+    }
+  } catch (e) {
+    showErr(String(e));
+    setStatus('could not load saved files, pick your folder');
+  }
+  busy = false;
+})();
 </script>
 </body>
 </html>
