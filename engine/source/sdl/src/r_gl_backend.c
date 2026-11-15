@@ -35,8 +35,16 @@ EM_JS(void, js_perf2, (int drawMs10, int polys), {
 
 static double s_drawMs = 0.0;
 static int s_drawPolys = 0;
+static double s_stateMs = 0.0;
+static double s_primMs = 0.0;
+static double s_upMs = 0.0;
+static int s_ups = 0;
 static int s_reportFrames = 0;
 static double s_reportStart = 0.0;
+
+EM_JS(void, js_perf3, (int stateMs10, int primMs10, int upMs10, int ups), {
+    if (window.SonicRPerf3) window.SonicRPerf3(stateMs10 / 10, primMs10 / 10, upMs10 / 10, ups);
+});
 
 void WebDrawReport(void)
 {
@@ -50,6 +58,11 @@ void WebDrawReport(void)
         s_reportStart = now;
         s_reportFrames = 0;
         s_drawMs = 0.0;
+        js_perf3((int)((s_stateMs - s_upMs) * 10.0 / s_reportFrames), (int)(s_primMs * 10.0 / s_reportFrames), (int)(s_upMs * 10.0 / s_reportFrames), s_ups / s_reportFrames);
+        s_stateMs = 0.0;
+        s_primMs = 0.0;
+        s_upMs = 0.0;
+        s_ups = 0;
         s_drawPolys = 0;
     }
 }
@@ -65,6 +78,21 @@ extern void ProcessTpageStates(void);
 extern void GL_UploadTpage(int tpage);
 extern void GL_UploadTpageRGBA(int tpage, unsigned char *rgba, int w, int h);
 extern void GL_UploadTpageSubRect(int tpage, int destX, int destY, int width, int height);
+
+#ifdef __EMSCRIPTEN__
+static void WebUpload(int tp)
+{
+    double t0 = emscripten_get_now();
+    GL_UploadTpage(tp);
+    s_upMs += emscripten_get_now() - t0;
+    s_ups++;
+}
+#else
+static void WebUpload(int tp)
+{
+    GL_UploadTpage(tp);
+}
+#endif
 extern void GL_MarkTpageDirty(int tpage);
 extern void GL_ClearTpageDirty(int tpage);
 extern void GL_FreezeTpage(int tpage);
@@ -180,7 +208,7 @@ void R_FlushState(void)
             if (tp < 52) {
                 if (g_tpagePixelBuf[tp] != NULL) {
                     if (s_glTextureDirty[tp]) {
-                        GL_UploadTpage(tp);
+                        WebUpload(tp);
                     }
                     glEnable(GL_TEXTURE_2D);
                     glBindTexture(GL_TEXTURE_2D, s_glTextures[tp]);
@@ -195,7 +223,7 @@ void R_FlushState(void)
     else if (s_desired.textureId >= 0 && s_desired.textureId < 52) {
         /* Same tpage, but check if pixel data was updated */
         if (s_glTextureDirty[s_desired.textureId]) {
-            GL_UploadTpage(s_desired.textureId);
+            WebUpload(s_desired.textureId);
         }
     }
 
@@ -498,6 +526,10 @@ void R_DrawTriFan(const RenderVertex *v, int count)
     double webT0 = emscripten_get_now();
 #endif
     R_FlushState();
+#ifdef __EMSCRIPTEN__
+    double webT1 = emscripten_get_now();
+    s_stateMs += webT1 - webT0;
+#endif
 
     glBegin(GL_TRIANGLE_FAN);
     for (int i = 0; i < count; i++) {
@@ -505,6 +537,7 @@ void R_DrawTriFan(const RenderVertex *v, int count)
     }
     glEnd();
 #ifdef __EMSCRIPTEN__
+    s_primMs += emscripten_get_now() - webT1;
     s_drawMs += emscripten_get_now() - webT0;
     s_drawPolys++;
 #endif
