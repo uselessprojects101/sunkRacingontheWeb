@@ -41,6 +41,7 @@ body.guest #arrow { color: #a43fb0; }
 body.guest #playBtn { width: 300px; height: 70px; font-size: 15px; color: #1f5f8f; border-color: #1f4e79; opacity: 1; }
 body.guest #playBtn:not(:disabled) { color: #1e9be9; border-color: #1e9be9; }
 body.guest #mpBtn { display: none !important; }
+#lanStatus { display: none; position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); color: #777; font-size: 12px; }
 #you { display: none; position: fixed; left: 12px; top: 8px; font-size: 26px; }
 body.guest #you { display: block; }
 #dots { display: flex; gap: 12px; margin-top: 12px; min-height: 16px; }
@@ -49,6 +50,7 @@ body.guest #you { display: block; }
 </head>
 <body>
 <div id="menu">
+  <div id="lanStatus"></div>
   <div id="you"><div>you are player...</div><div id="dots"></div></div>
   <h1>sonic r</h1>
   <button id="pickBtn" class="btn big">select folder/file</button>
@@ -63,8 +65,8 @@ body.guest #you { display: block; }
   </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.11</div>
-    <div>updated on 11/13/2026</div>
+    <div>v0.12</div>
+    <div>updated on 11/15/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
 </div>
@@ -277,6 +279,14 @@ nameIn.addEventListener('input', function () {
   if (v !== nameIn.value) nameIn.value = v;
 });
 updateProfile();
+
+if (location.search.indexOf('lan') >= 0 && window.SonicRNet) {
+  var lanEl = document.getElementById('lanStatus');
+  lanEl.style.display = 'block';
+  var showLan = function (t) { lanEl.textContent = 'lan v' + window.SonicRNet.version + ': ' + t; };
+  window.SonicRNet.onStatus = showLan;
+  showLan(window.SonicRNet.status());
+}
 
 if (guestMode) {
   document.body.classList.add('guest');

@@ -12,6 +12,7 @@
   var currentFail = null;
   var gen = 0;
   var mySlot = -1;
+  var statusText = 'idle';
 
   function report(text) {
     if (typeof window.showErr === 'function') window.showErr('lan: ' + text);
@@ -45,14 +46,24 @@
     queue.push({ slot: slot, bytes: b });
   }
 
+  function setStatus(t) {
+    statusText = t;
+    if (api.onStatus) api.onStatus(t);
+  }
+
   function setSlot(n) {
     if (mySlot === n) return;
     mySlot = n;
+    if (n >= 0) setStatus('you are player ' + (n + 1));
     if (api.onSlot) api.onSlot(n);
   }
 
   function isHello(b) {
     return b && b.length === 5 && b[0] === 0x53 && b[1] === 0x52 && b[2] === 0x4c && b[3] === 1;
+  }
+
+  function isHelloRequest(b) {
+    return b && b.length === 4 && b[0] === 0x53 && b[1] === 0x52 && b[2] === 0x4c && b[3] === 2;
   }
 
   function closeAll() {
@@ -99,14 +110,26 @@
       return;
     }
     conns[slot] = conn;
-    conn.on('open', function () {
+    var tellSlot = function () {
       try { conn.send(new Uint8Array([0x53, 0x52, 0x4c, 1, slot])); } catch (e) {}
+    };
+    conn.on('open', function () {
+      setStatus('guest connected in slot ' + slot);
+      tellSlot();
     });
     conn.on('data', function (d) {
+      var b = toBytes(d);
+      if (isHelloRequest(b)) {
+        tellSlot();
+        return;
+      }
       push(slot, d);
     });
     conn.on('close', function () {
-      if (conns[slot] === conn) conns[slot] = null;
+      if (conns[slot] === conn) {
+        conns[slot] = null;
+        setStatus('guest left slot ' + slot);
+      }
     });
     conn.on('error', function () {
       if (conns[slot] === conn) conns[slot] = null;
@@ -126,12 +149,19 @@
       report(String(e));
       return -1;
     }
+    setStatus('starting host');
+    peer.on('open', function () {
+      if (g === gen) setStatus('hosting, waiting for players');
+    });
     peer.on('connection', function (conn) {
       if (g === gen) onGuest(conn);
     });
     peer.on('error', function (e) {
       if (g !== gen) return;
-      if (e && e.type === 'unavailable-id') report('this link already has a host, use a different #name');
+      if (e && e.type === 'unavailable-id') {
+        setStatus('this link already has a host');
+        report('this link already has a host, use a different #name');
+      }
       else report('host error: ' + (e && e.type ? e.type : e));
     });
     return 0;
@@ -141,6 +171,7 @@
     if (!discovering || found || attempting || !peer || !peer.open) return;
     var g = gen;
     attempting = true;
+    setStatus('connecting to host');
     var c = peer.connect(hostId(), { reliable: true, serialization: 'raw' });
     var finished = false;
     var timer = null;
@@ -151,7 +182,10 @@
       attempting = false;
       currentFail = null;
       try { c.close(); } catch (e) {}
-      if (g === gen) retryTimer = setTimeout(connectHost, 2000);
+      if (g === gen) {
+        setStatus('searching for host');
+        retryTimer = setTimeout(connectHost, 2000);
+      }
     }
     currentFail = fail;
     timer = setTimeout(fail, 8000);
@@ -163,6 +197,8 @@
       currentFail = null;
       hostConn = c;
       found = true;
+      setStatus('connected, waiting for player number');
+      try { c.send(new Uint8Array([0x53, 0x52, 0x4c, 2])); } catch (e) {}
       c.on('data', function (d) {
         var b = toBytes(d);
         if (isHello(b)) {
@@ -175,6 +211,11 @@
         if (hostConn === c) {
           hostConn = null;
           setSlot(-1);
+          if (!delivered && discovering && g === gen) {
+            found = false;
+            setStatus('lost the host, searching again');
+            retryTimer = setTimeout(connectHost, 1000);
+          }
         }
       });
     });
@@ -188,6 +229,7 @@
       return -1;
     }
     discovering = true;
+    setStatus('searching for host');
     delivered = false;
     var g = gen;
     if (!peer) {
@@ -257,6 +299,9 @@
   }
 
   var api = {
+    version: 2,
+    status: function () { return statusText; },
+    onStatus: null,
     onSlot: null,
     hostStart: hostStart,
     discoverSend: discoverSend,

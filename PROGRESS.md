@@ -57,3 +57,8 @@
 - player dots: host tells each guest its player number, guest page shows 2 to 4 dots
 - names limited to letters and digits (the game font has no other characters)
 - polygon batching was tried and reverted: no speed gain
+
+## update 11
+- v0.12: guest page reconnects by itself and asks the host for its player number; dots for p2 to p4 confirmed
+- ?lan in the address shows a small network status line for debugging
+- next: test the invite link on the chromebook, then performance or bug sweep
