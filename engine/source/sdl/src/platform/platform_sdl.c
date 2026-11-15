@@ -1,6 +1,3 @@
-#ifdef __EMSCRIPTEN__
-void R_BatchFlushIfAny(void);
-#endif
 /**
  * platform_sdl.c - SDL2 platform implementation
  *
@@ -861,9 +858,6 @@ void platform_audio_shutdown(void)
 
 void platform_gl_swap(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     if (g_sdlWindow) {
         SDL_GL_SwapWindow(g_sdlWindow);
     }

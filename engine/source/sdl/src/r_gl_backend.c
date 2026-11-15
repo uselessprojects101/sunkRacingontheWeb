@@ -29,15 +29,12 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
-void R_BatchFlushIfAny(void);
-
-EM_JS(void, js_perf2, (int drawMs10, int polys, int batches), {
-    if (window.SonicRPerf2) window.SonicRPerf2(drawMs10 / 10, polys, batches);
+EM_JS(void, js_perf2, (int drawMs10, int polys), {
+    if (window.SonicRPerf2) window.SonicRPerf2(drawMs10 / 10, polys);
 });
 
 static double s_drawMs = 0.0;
 static int s_drawPolys = 0;
-static int s_batchCalls = 0;
 static int s_reportFrames = 0;
 static double s_reportStart = 0.0;
 
@@ -49,12 +46,11 @@ void WebDrawReport(void)
     }
     s_reportFrames++;
     if (now - s_reportStart >= 1000.0) {
-        js_perf2((int)(s_drawMs * 10.0 / s_reportFrames), s_drawPolys / s_reportFrames, s_batchCalls / s_reportFrames);
+        js_perf2((int)(s_drawMs * 10.0 / s_reportFrames), s_drawPolys / s_reportFrames);
         s_reportStart = now;
         s_reportFrames = 0;
         s_drawMs = 0.0;
         s_drawPolys = 0;
-        s_batchCalls = 0;
     }
 }
 #endif
@@ -382,9 +378,6 @@ void R_SetFilter(R_FilterMode mode)
  * applied to the texture object at bind time by GL_ApplyTpageFilter. */
 void R_SetTpageFilter(int tpage, R_FilterMode mode)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     if (tpage >= 0 && tpage < 52) {
         s_tpageFilter[tpage] = (unsigned char)(mode + 1);
     }
@@ -392,9 +385,6 @@ void R_SetTpageFilter(int tpage, R_FilterMode mode)
 
 void R_ClearTpageFilter(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     if (tpage >= 0 && tpage < 52) {
         s_tpageFilter[tpage] = 0;
     }
@@ -404,9 +394,6 @@ void R_ClearTpageFilter(int tpage)
  * and the SDL path renders true Add Signed, so there is nothing to correct. */
 void R_SetTpageSatBoost(int tpage, int k256)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     (void)tpage;
     (void)k256;
 }
@@ -485,101 +472,6 @@ void R_ResetState(void)
  * Geometry submission — immediate draw
  * ===================================================================== */
 
-#ifdef __EMSCRIPTEN__
-#define BATCH_MAX_VERTS 9000
-
-typedef struct {
-    float x, y, z, w;
-    float r, g, b, a;
-    float u, v;
-} BatchVert;
-
-static BatchVert s_batch[BATCH_MAX_VERTS];
-static int s_batchCount = 0;
-static int s_batchMode = -1;
-
-EM_JS(int, js_nobatch, (void), {
-    return location.search.indexOf('nobatch') >= 0 ? 1 : 0;
-});
-
-static int R_BatchEnabled(void)
-{
-    if (s_batchMode < 0) {
-        s_batchMode = js_nobatch() ? 0 : 1;
-    }
-    return s_batchMode;
-}
-
-static void R_BatchFlush(void)
-{
-    if (s_batchCount == 0) {
-        return;
-    }
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glVertexPointer(4, GL_FLOAT, sizeof(BatchVert), &s_batch[0].x);
-    glColorPointer(4, GL_FLOAT, sizeof(BatchVert), &s_batch[0].r);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(BatchVert), &s_batch[0].u);
-    glDrawArrays(GL_TRIANGLES, 0, s_batchCount);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_VERTEX_ARRAY);
-    s_batchCount = 0;
-    s_batchCalls++;
-}
-
-void R_BatchFlushIfAny(void)
-{
-    if (s_batchCount == 0) {
-        return;
-    }
-    double t0 = emscripten_get_now();
-    R_BatchFlush();
-    s_drawMs += emscripten_get_now() - t0;
-}
-
-static void R_BatchPush(const RenderVertex *v)
-{
-    BatchVert *o = &s_batch[s_batchCount++];
-    float w = (v->rhw > 0.0f) ? (1.0f / v->rhw) : 1.0f;
-    o->x = v->sx * w;
-    o->y = v->sy * w;
-    o->z = v->sz * w;
-    o->w = w;
-    o->r = (float)((v->color >> 16) & 0xFF) * (1.0f / 255.0f);
-    o->g = (float)((v->color >> 8) & 0xFF) * (1.0f / 255.0f);
-    o->b = (float)(v->color & 0xFF) * (1.0f / 255.0f);
-    o->a = (float)((v->color >> 24) & 0xFF) * (1.0f / 255.0f);
-    o->u = v->u;
-    o->v = v->v;
-}
-
-static void R_BatchDraw(const RenderVertex *v, int count)
-{
-    double t0 = emscripten_get_now();
-    int changed = memcmp(&s_desired, &s_current, sizeof(R_StateSnapshot)) != 0;
-    int tex = s_desired.textureId;
-    if (!changed && tex >= 0 && tex < 52 && s_glTextureDirty[tex]) {
-        changed = 1;
-    }
-    if (changed) {
-        R_BatchFlush();
-    }
-    R_FlushState();
-    if (s_batchCount + (count - 2) * 3 > BATCH_MAX_VERTS) {
-        R_BatchFlush();
-    }
-    for (int i = 1; i + 1 < count; i++) {
-        R_BatchPush(&v[0]);
-        R_BatchPush(&v[i]);
-        R_BatchPush(&v[i + 1]);
-    }
-    s_drawMs += emscripten_get_now() - t0;
-    s_drawPolys++;
-}
-#endif
-
 /* Emit a single vertex via GL immediate mode.
  * Uses glVertex4f with W=1/RHW for perspective-correct interpolation. */
 static inline void R_EmitVertex(const RenderVertex *v)
@@ -602,12 +494,6 @@ void R_DrawTriFan(const RenderVertex *v, int count)
         return;
     }
 
-#ifdef __EMSCRIPTEN__
-    if (R_BatchEnabled()) {
-        R_BatchDraw(v, count);
-        return;
-    }
-#endif
 #ifdef __EMSCRIPTEN__
     double webT0 = emscripten_get_now();
 #endif
@@ -682,25 +568,16 @@ void R_DrawQuad2DSolid(float x0, float y0, float x1, float y1,
 
 void R_InitTextures(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_InitTextures();
 }
 
 void R_UploadTexture(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_UploadTpage(tpage);
 }
 
 void R_MarkTextureDirty(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     /* The upload this schedules will hard-set GL_NEAREST on the texture
      * object (render_gl.c:139, :247), so forget the resident filter and let
      * the next bind re-apply it. */
@@ -712,113 +589,71 @@ void R_MarkTextureDirty(int tpage)
 
 void R_ClearTextureDirty(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_ClearTpageDirty(tpage);
 }
 
 void R_FreezeTexture(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_FreezeTpage(tpage);
 }
 
 void R_ThawTexture(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     (void)tpage; /* GL has no persistent freeze flag */
 }
 
 void R_SetNoColorKey(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_SetNoColorKey(tpage);
 }
 
 void R_ClearNoColorKey(int tpage)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_ClearNoColorKey(tpage);
 }
 
 void R_SetTpageGreen6(int tpage, int on)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_SetTpageGreen6(tpage, on);
 }
 
 void R_SetTpageRGBA8(int tpage, unsigned char *rgba) {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_SetTpageRGBA8(tpage, rgba);
 }
 
 void R_UploadTextureRGBA(int tpage, unsigned char *rgba, int w, int h)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_UploadTpageRGBA(tpage, rgba, w, h);
 }
 
 void R_UploadTextureSubRect(int tpage, int x, int y, int w, int h)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_UploadTpageSubRect(tpage, x, y, w, h);
 }
 
 void R_SetPendingRGBA(int tpage, unsigned char *rgba, int w, int h)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     GL_SetPendingRGBA(tpage, rgba, w, h);
 }
 
 void R_EndFrame(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     EndFrame();
     /* EndFrame is just glFlush — no GL state changes, tracker stays valid. */
 }
 
 void R_Flip(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     FlipD3D();
 }
 
 void R_ClearAndReset(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     ProcessTpageStates();
 }
 
 void R_ClearDepth(void)
 {
-#ifdef __EMSCRIPTEN__
-    R_BatchFlushIfAny();
-#endif
     R_FlushState();
     glClear(GL_DEPTH_BUFFER_BIT);
 }
