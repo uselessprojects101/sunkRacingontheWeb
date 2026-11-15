@@ -51,3 +51,7 @@
 ## update 8
 - v0.9: readout also shows drawing ms and polygons per frame (add ?fps)
 - next: if drawing time dominates, batch polygons into fewer draw calls
+
+## update 9
+- measured on celeron chromebook: 8 fps, drawing took 139 of 149 ms per frame, about 3000 polys
+- v0.10: polygon batching in r_gl_backend.c (one draw call per state instead of per polygon); add ?nobatch to turn it off
