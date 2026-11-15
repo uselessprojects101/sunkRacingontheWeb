@@ -35,10 +35,21 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
 #hostBtn { position: absolute; left: 40px; right: 40px; top: 100px; height: 110px; font-size: 34px; color: #22b455; border-color: #22b455; padding: 0 12px; }
 #hostBtn.link { font-size: 18px; word-break: break-all; }
 #mpBack { position: absolute; left: 8px; bottom: 8px; width: 90px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
+body.guest h1 { font-size: 20px; color: #e0182d; border: 4px solid #e0182d; padding: 14px 28px; margin: 0 0 30px; }
+body.guest #pickBtn { width: 320px; height: 86px; font-size: 14px; color: #a43fb0; border-color: #a43fb0; }
+body.guest #arrow { color: #a43fb0; }
+body.guest #playBtn { width: 300px; height: 70px; font-size: 15px; color: #1f5f8f; border-color: #1f4e79; opacity: 1; }
+body.guest #playBtn:not(:disabled) { color: #1e9be9; border-color: #1e9be9; }
+body.guest #mpBtn { display: none !important; }
+#you { display: none; position: fixed; left: 12px; top: 8px; font-size: 26px; }
+body.guest #you { display: block; }
+#dots { display: flex; gap: 12px; margin-top: 12px; min-height: 16px; }
+.dot { width: 16px; height: 16px; background: #00a2e8; }
 </style>
 </head>
 <body>
 <div id="menu">
+  <div id="you"><div>you are player...</div><div id="dots"></div></div>
   <h1>sonic r</h1>
   <button id="pickBtn" class="btn big">select folder/file</button>
   <div id="arrow">&#8595;</div>
@@ -52,7 +63,7 @@ h1 { font-weight: normal; font-size: 44px; margin: 0 0 6px; }
   </div>
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
-    <div>v0.9</div>
+    <div>v0.11</div>
     <div>updated on 11/13/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
@@ -105,6 +116,8 @@ var mpBtn = document.getElementById('mpBtn');
 var mpEl = document.getElementById('mp');
 var hostBtn = document.getElementById('hostBtn');
 var clearBtn = document.getElementById('clearBtn');
+var guestMode = location.hash.length > 1;
+var dotsEl = document.getElementById('dots');
 var hosting = false;
 var inviteLink = '';
 var nameIn = document.getElementById('nameIn');
@@ -115,6 +128,21 @@ var loaded = false;
 var busy = false;
 
 function setStatus(t) { statusEl.textContent = t; }
+
+function syncPlayLabel() {
+  if (!guestMode) return;
+  playBtn.textContent = loaded ? 'alr you can join in' : 'dont keep the host waiting';
+}
+
+function renderDots(slot) {
+  var n = slot >= 0 ? slot + 1 : 0;
+  dotsEl.innerHTML = '';
+  for (var i = 0; i < n; i++) {
+    var d = document.createElement('div');
+    d.className = 'dot';
+    dotsEl.appendChild(d);
+  }
+}
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 pickBtn.addEventListener('click', function () { if (!busy) pick.click(); });
@@ -129,6 +157,7 @@ pick.addEventListener('change', async function () {
   loaded = false;
   playBtn.disabled = true;
   mpBtn.style.display = 'none';
+  syncPlayLabel();
   try {
     var base = null;
     var depth = -1;
@@ -202,6 +231,7 @@ pick.addEventListener('change', async function () {
     loaded = true;
     playBtn.disabled = false;
     mpBtn.style.display = 'block';
+    syncPlayLabel();
     clearBtn.style.display = persist ? 'block' : 'none';
     setStatus('ready (' + todo.length + ' files' + (persist ? ', saved for next time' : '') + ')');
   } catch (e) {
@@ -235,13 +265,29 @@ window.addEventListener('hashchange', updateProfile);
 
 function gameArgs() {
   if (location.hash.length <= 1) return [];
-  var n = nameIn.value.replace(/[^A-Za-z0-9 _.-]/g, '').trim().slice(0, 12);
+  var n = nameIn.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
   try { localStorage.setItem('sunkr_name', n); } catch (e) {}
   return n ? ['--username', n] : [];
 }
 
-try { nameIn.value = localStorage.getItem('sunkr_name') || ''; } catch (e) {}
+try { nameIn.value = (localStorage.getItem('sunkr_name') || '').replace(/[^A-Za-z0-9]/g, ''); } catch (e) {}
+
+nameIn.addEventListener('input', function () {
+  var v = nameIn.value.replace(/[^A-Za-z0-9]/g, '');
+  if (v !== nameIn.value) nameIn.value = v;
+});
 updateProfile();
+
+if (guestMode) {
+  document.body.classList.add('guest');
+  document.querySelector('h1').textContent = 'sonic r invitation link';
+  pickBtn.textContent = 'please select folder / file to play first';
+  syncPlayLabel();
+  if (window.SonicRNet) {
+    window.SonicRNet.onSlot = renderDots;
+    window.SonicRNet.discoverSend();
+  }
+}
 
 (function () {
   if (location.search.indexOf('fps') < 0) return;
@@ -313,6 +359,7 @@ clearBtn.addEventListener('click', async function () {
   playBtn.disabled = true;
   mpBtn.style.display = 'none';
   clearBtn.style.display = 'none';
+  syncPlayLabel();
   setStatus('saved files removed, pick your folder again');
 });
 
@@ -333,6 +380,7 @@ clearBtn.addEventListener('click', async function () {
       loaded = true;
       playBtn.disabled = false;
       mpBtn.style.display = 'block';
+      syncPlayLabel();
       clearBtn.style.display = 'block';
       setStatus('ready (' + n + ' saved files)');
     }

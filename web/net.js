@@ -11,6 +11,7 @@
   var retryTimer = null;
   var currentFail = null;
   var gen = 0;
+  var mySlot = -1;
 
   function report(text) {
     if (typeof window.showErr === 'function') window.showErr('lan: ' + text);
@@ -44,8 +45,19 @@
     queue.push({ slot: slot, bytes: b });
   }
 
+  function setSlot(n) {
+    if (mySlot === n) return;
+    mySlot = n;
+    if (api.onSlot) api.onSlot(n);
+  }
+
+  function isHello(b) {
+    return b && b.length === 5 && b[0] === 0x53 && b[1] === 0x52 && b[2] === 0x4c && b[3] === 1;
+  }
+
   function closeAll() {
     gen++;
+    setSlot(-1);
     discovering = false;
     found = false;
     delivered = false;
@@ -87,6 +99,9 @@
       return;
     }
     conns[slot] = conn;
+    conn.on('open', function () {
+      try { conn.send(new Uint8Array([0x53, 0x52, 0x4c, 1, slot])); } catch (e) {}
+    });
     conn.on('data', function (d) {
       push(slot, d);
     });
@@ -149,10 +164,18 @@
       hostConn = c;
       found = true;
       c.on('data', function (d) {
+        var b = toBytes(d);
+        if (isHello(b)) {
+          setSlot(b[4]);
+          return;
+        }
         push(-1, d);
       });
       c.on('close', function () {
-        if (hostConn === c) hostConn = null;
+        if (hostConn === c) {
+          hostConn = null;
+          setSlot(-1);
+        }
       });
     });
     c.on('error', fail);
@@ -233,7 +256,8 @@
     return queue.shift() || null;
   }
 
-  window.SonicRNet = {
+  var api = {
+    onSlot: null,
     hostStart: hostStart,
     discoverSend: discoverSend,
     discoverCheck: discoverCheck,
@@ -244,4 +268,5 @@
     pop: pop,
     close: closeAll
   };
+  window.SonicRNet = api;
 })(window, location);

@@ -51,3 +51,9 @@
 ## update 8
 - v0.9: readout also shows drawing ms and polygons per frame (add ?fps)
 - next: if drawing time dominates, batch polygons into fewer draw calls
+
+## update 10
+- v0.11: guest page from the invitation link (red invitation box, purple select box, dim and bright join button)
+- player dots: host tells each guest its player number, guest page shows 2 to 4 dots
+- names limited to letters and digits (the game font has no other characters)
+- polygon batching was tried and reverted: no speed gain
