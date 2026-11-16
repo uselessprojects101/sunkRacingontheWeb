@@ -55,10 +55,10 @@ void WebDrawReport(void)
     s_reportFrames++;
     if (now - s_reportStart >= 1000.0) {
         js_perf2((int)(s_drawMs * 10.0 / s_reportFrames), s_drawPolys / s_reportFrames);
+        js_perf3((int)((s_stateMs - s_upMs) * 10.0 / s_reportFrames), (int)(s_primMs * 10.0 / s_reportFrames), (int)(s_upMs * 10.0 / s_reportFrames), s_ups / s_reportFrames);
         s_reportStart = now;
         s_reportFrames = 0;
         s_drawMs = 0.0;
-        js_perf3((int)((s_stateMs - s_upMs) * 10.0 / s_reportFrames), (int)(s_primMs * 10.0 / s_reportFrames), (int)(s_upMs * 10.0 / s_reportFrames), s_ups / s_reportFrames);
         s_stateMs = 0.0;
         s_primMs = 0.0;
         s_upMs = 0.0;

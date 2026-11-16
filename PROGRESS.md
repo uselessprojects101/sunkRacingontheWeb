@@ -66,3 +66,7 @@
 ## update 12
 - 4 player lan test passed (lobby, names, race with four players)
 - v0.13: readout splits drawing time into state, polygons and texture uploads (add ?fps)
+
+## update 13
+- chromebook readout: 14 to 24 fps, drawing is 80 to 86 percent of frame work, about 3000 polys
+- fixed the order bug in the breakdown report (it divided by a counter that had just been reset)
