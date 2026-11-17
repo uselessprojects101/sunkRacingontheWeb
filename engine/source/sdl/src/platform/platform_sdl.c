@@ -1,3 +1,6 @@
+#ifdef SONICR_GLES2
+void R_GLES2_FlushVerts(void);
+#endif
 /**
  * platform_sdl.c - SDL2 platform implementation
  *
@@ -858,6 +861,9 @@ void platform_audio_shutdown(void)
 
 void platform_gl_swap(void)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_FlushVerts();
+#endif
     if (g_sdlWindow) {
         SDL_GL_SwapWindow(g_sdlWindow);
     }

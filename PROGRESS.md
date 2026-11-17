@@ -70,3 +70,8 @@
 ## update 13
 - chromebook readout: 14 to 24 fps, drawing is 80 to 86 percent of frame work, about 3000 polys
 - fixed the order bug in the breakdown report (it divided by a counter that had just been reset)
+
+## update 14
+- new gles2 renderer (src/gles2/r_gles2_backend.c): shader and one vertex list per state group instead of per-vertex legacy calls
+- built as a separate page at /fast/ next to the current page; pc test: 30 fps, drawing 4.8 ms for about 3000 polys
+- next: test /fast/ on the chromebook (add ?fps)

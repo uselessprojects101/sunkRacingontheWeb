@@ -1,3 +1,6 @@
+#ifdef SONICR_GLES2
+void R_GLES2_Sync(void);
+#endif
 /**
  * render_gl.c — OpenGL 1.x rendering backend (SDL2 port)
  *
@@ -105,6 +108,9 @@ static unsigned char *s_tpageRGBA8Buf[52];
  */
 void GL_InitTextures(void)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     if (s_glTexturesInited) {
         return;
     }
@@ -126,6 +132,9 @@ void GL_InitTextures(void)
  */
 void GL_UploadTpage(int tpage)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     if (!s_glTexturesInited) {
         GL_InitTextures();
     }
@@ -268,6 +277,9 @@ void GL_UploadTpage(int tpage)
  */
 void GL_UploadTpageRGBA(int tpage, unsigned char *rgba, int w, int h)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     if (!s_glTexturesInited) {
         GL_InitTextures();
     }
@@ -340,6 +352,9 @@ void GL_ClearTpageDirty(int tpage)
  */
 void GL_UploadTpageSubRect(int tpage, int destX, int destY, int width, int height)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     if (!s_glTexturesInited) {
         GL_InitTextures();
     }
@@ -417,6 +432,9 @@ void GL_SetPendingRGBA(int tpage, unsigned char *rgba, int w, int h)
  */
 void BeginFrame(void)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     /* Clear vertex buffer depth fields (offset 0x30 per vertex, stride 0x40)
      * to prevent stale geometry from previous frames showing as glitchy
      * triangles. Only zeroes the depth int, not the source positions. */
@@ -553,6 +571,9 @@ void FlipD3D(void)
  */
 void SetViewportFromConfig(int *config)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     if (config == NULL) {
         return;
     }
@@ -756,6 +777,9 @@ void CleanupD3DTPages(void)                                /* 0x4332ac */
  */
 void D3DAppClearBackBuffer(void)
 {
+#ifdef SONICR_GLES2
+    R_GLES2_Sync();
+#endif
     /* Confine the clear to the 4:3 area. */
     R_SetScissor(g_glViewportOffsetX, g_glViewportOffsetY,
                  g_glBackingWidth, g_glBackingHeight);
