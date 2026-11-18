@@ -75,3 +75,7 @@
 - new gles2 renderer (src/gles2/r_gles2_backend.c): shader and one vertex list per state group instead of per-vertex legacy calls
 - built as a separate page at /fast/ next to the current page; pc test: 30 fps, drawing 4.8 ms for about 3000 polys
 - next: test /fast/ on the chromebook (add ?fps)
+
+## update 15
+- v0.14: the new gles2 renderer is now the main page; the old renderer moved to /classic/ as a fallback
+- split screen, race and title screen verified on the new renderer; chromebook 29 fps (was 21)
