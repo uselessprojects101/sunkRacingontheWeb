@@ -79,3 +79,11 @@
 ## update 15
 - v0.14: the new gles2 renderer is now the main page; the old renderer moved to /classic/ as a fallback
 - split screen, race and title screen verified on the new renderer; chromebook 29 fps (was 21)
+
+## update 16
+- lan fix (net.js v3): returning guests keep their slot (random id), guests that have not joined the game are not counted, silent guests are dropped after 20 seconds
+- fixes duplicate or phantom players in the lobby after the first race
+
+## update 16
+- lan fix (net.js v3): returning guests keep their slot (random id), guests that have not joined the game are not counted, silent guests are dropped after 20 seconds
+- fixes duplicate or phantom players in the lobby after the first race
