@@ -172,6 +172,8 @@ const char *g_cmdHostIP = NULL;
  * SDL also accepts -u to set this explicitly. */
 static int s_cmdUnlock = 0;
 static int s_cmdFullscreen = 0;
+static int s_cmdWidth = 0;
+static int s_cmdScale = 1;
 static int s_cmdPort = -1;
 static char s_cmdUsername[MM_MAX_USERNAME];
 
@@ -575,6 +577,8 @@ int main(int argc, char *argv[])
         {"unlock", no_argument, NULL, 'u'},
         {"fullscreen", no_argument, NULL, 'f'},
         {"username", required_argument, NULL, 'n'},
+        {"width", required_argument, NULL, 'w'},
+        {"scale", required_argument, NULL, 's'},
         {NULL, 0, NULL, 0}};
     int opt;
     while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
@@ -593,6 +597,14 @@ int main(int argc, char *argv[])
                 break;
             case 'f':
                 s_cmdFullscreen = 1;
+                break;
+            case 'w':
+                s_cmdWidth = atoi(optarg);
+                break;
+            case 's':
+                s_cmdScale = atoi(optarg);
+                if (s_cmdScale < 1) s_cmdScale = 1;
+                if (s_cmdScale > 3) s_cmdScale = 3;
                 break;
             case 'n':
                 strncpy(s_cmdUsername, optarg, sizeof(s_cmdUsername) - 1);
@@ -674,7 +686,8 @@ int main(int argc, char *argv[])
     /* RegisterClassA, CreateWindowExA, ShowWindow
      * Creates fullscreen Win32 window sized to full screen.
      * Platform-specific window/GL/audio init lives in platform_*.c. */
-    if (platform_init(640, 480, s_cmdFullscreen, "Sonic R") != 0) {
+    int initWidth = (s_cmdWidth >= 640 && s_cmdWidth <= 1120) ? (s_cmdWidth & ~1) : 640;
+    if (platform_init(initWidth * s_cmdScale, 480 * s_cmdScale, s_cmdFullscreen, "Sonic R") != 0) {
         return 1;
     }
 
@@ -797,6 +810,10 @@ def SONICR_DC /* DC splash screen */
     g_screenHeightBase = 480;   /* render height is derived from this per mode */
     g_bitsPerPixel = 16;
     g_surfaceStride = 640;
+    if (s_cmdWidth >= 640 && s_cmdWidth <= 1120) {
+        g_screenWidth = s_cmdWidth & ~1;
+        g_surfaceStride = g_screenWidth;
+    }
 
     LoadGameState();
 
@@ -1249,7 +1266,7 @@ race_setup:
     g_vpClipRight10 = g_screenWidth * 0x400 - 1;
     g_vpClipLeft16 = 0;
     g_vpClipRight16 = g_screenWidth * 0x10000 - 1;
-    g_projScaleX = (g_screenWidth * 0x100) / 0x140;
+    g_projScaleX = (((g_screenHeight * 4) / 3) * 0x100) / 0x140;
     g_projScaleY = (g_screenHeight * 0x100) / 0xf0;
     g_vpParam0F = 0;
     g_parallaxWidthDouble = g_parallaxWidth * 2;

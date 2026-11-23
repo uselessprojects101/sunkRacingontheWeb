@@ -62,6 +62,8 @@ extern void PVR_ColorizeTpageVRAM(int tpage, int r, int g, int b);
  * DAT_0052c26c = 1/512 = 0.001953125 (position scale, double)
  * DAT_0052c274 = 1/256 = 0.00390625 (UV scale, float)
  */
+int g_uiAlign = 1;
+
 void DrawTexturedQuad(int xPos, int yPos, int depth, int width, int height,
                       int tpage, int uvX, int uvY, int uvW, int uvH,
                       unsigned int color)
@@ -74,7 +76,17 @@ void DrawTexturedQuad(int xPos, int yPos, int depth, int width, int height,
     // 1 / 256 
     #define UV_SCALE_Q 0.00390625f
 
-    float sx = (float)g_clipLeft + (float)xPos * (float)g_projScaleXCurrent * POS_SCALE;
+    float uiExtra = (float)g_screenWidthFull - (float)(640 * g_projScaleXCurrent) / 512.0f;
+    float uiShift = 0.0f;
+    if (uiExtra > 0.5f) {
+        int a = g_uiAlign;
+        if (a == 3) {
+            int c3 = (xPos * 2 + width) * 3;
+            a = (c3 < 1280) ? 0 : ((c3 > 2560) ? 2 : 1);
+        }
+        uiShift = uiExtra * 0.5f * (float)a;
+    }
+    float sx = (float)g_clipLeft + uiShift + (float)xPos * (float)g_projScaleXCurrent * POS_SCALE;
     float sy = (float)g_clipTop  + (float)yPos * (float)g_projScaleY * POS_SCALE;
     float sx2 = sx + (float)width  * (float)g_projScaleXCurrent * POS_SCALE;
     float sy2 = sy + (float)height * (float)g_projScaleY * POS_SCALE;

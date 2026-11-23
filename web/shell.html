@@ -46,6 +46,17 @@ body.guest #mpBtn { display: none !important; }
 body.guest #you { display: block; }
 #dots { display: flex; gap: 12px; margin-top: 12px; min-height: 16px; }
 .dot { width: 16px; height: 16px; background: #00a2e8; }
+#setBtn { display: none; position: fixed; right: 8px; top: 8px; width: 110px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
+body.wide #setBtn { display: block; }
+#set { display: none; position: fixed; inset: 0; background: #000; z-index: 5; }
+#setHead { position: absolute; left: 0; top: 0; border: 4px solid #555; color: #aaa; padding: 14px 24px; font-size: 18px; }
+#setBody { position: absolute; left: 0; right: 0; top: 110px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.setLabel { color: #888; font-size: 16px; margin-top: 18px; }
+.setRow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
+.opt { min-width: 90px; height: 40px; font-size: 14px; color: #666; border-color: #333; border-width: 3px; padding: 0 12px; }
+.opt.sel { color: #fff; border-color: #fff; }
+#setNote { color: #666; font-size: 13px; max-width: 90vw; text-align: center; margin-top: 24px; }
+#setBack { position: absolute; left: 8px; bottom: 8px; width: 90px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
 </style>
 </head>
 <body>
@@ -59,6 +70,7 @@ body.guest #you { display: block; }
   <button id="clearBtn" class="btn">clear saved files</button>
   <div id="status"></div>
   <button id="mpBtn" class="btn">multiplayer</button>
+  <button id="setBtn" class="btn">settings</button>
   <div id="profile">
     <div id="profileTitle">profile</div>
     <label>name: <input id="nameIn" maxlength="12" autocomplete="off"></label>
@@ -81,6 +93,17 @@ body.guest #you { display: block; }
   <div id="mpHead">welcome to multiplayer mode</div>
   <button id="hostBtn" class="btn">host</button>
   <button id="mpBack" class="btn">back</button>
+</div>
+<div id="set">
+  <div id="setHead">settings</div>
+  <div id="setBody">
+    <div class="setLabel">aspect ratio</div>
+    <div class="setRow" id="aspectRow"></div>
+    <div class="setLabel">resolution</div>
+    <div class="setRow" id="resRow"></div>
+    <div id="setNote">applies when you press play. to change it later, reload the page.</div>
+  </div>
+  <button id="setBack" class="btn">back</button>
 </div>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <pre id="err"></pre>
@@ -265,11 +288,59 @@ function updateProfile() {
 
 window.addEventListener('hashchange', updateProfile);
 
+var wideBuild = location.pathname.indexOf('/wide/') >= 0;
+if (wideBuild) document.body.classList.add('wide');
+var aspectList = [['auto', 0, 'auto'], ['4:3', 640, '4:3'], ['16:10', 768, '16:10'], ['16:9', 854, '16:9'], ['21:9', 1120, '21:9']];
+var resList = [['1', 1, '1x (480p)'], ['2', 2, '2x (960p)'], ['3', 3, '3x (1440p)']];
+var cfgAspect = 'auto';
+var cfgRes = '1';
+try {
+  var savedAspect = localStorage.getItem('sunkr_aspect');
+  var savedRes = localStorage.getItem('sunkr_res');
+  if (aspectList.some(function (x) { return x[0] === savedAspect; })) cfgAspect = savedAspect;
+  if (resList.some(function (x) { return x[0] === savedRes; })) cfgRes = savedRes;
+} catch (e) {}
+var setEl = document.getElementById('set');
+function fillRow(id, list, isSel, pick) {
+  var row = document.getElementById(id);
+  row.innerHTML = '';
+  list.forEach(function (it) {
+    var b = document.createElement('button');
+    b.className = 'btn opt' + (isSel(it[0]) ? ' sel' : '');
+    b.textContent = it[2];
+    b.addEventListener('click', function () { pick(it[0]); renderSettings(); });
+    row.appendChild(b);
+  });
+}
+function renderSettings() {
+  fillRow('aspectRow', aspectList, function (k) { return k === cfgAspect; }, function (k) {
+    cfgAspect = k;
+    try { localStorage.setItem('sunkr_aspect', k); } catch (e) {}
+  });
+  fillRow('resRow', resList, function (k) { return k === cfgRes; }, function (k) {
+    cfgRes = k;
+    try { localStorage.setItem('sunkr_res', k); } catch (e) {}
+  });
+}
+renderSettings();
+document.getElementById('setBtn').addEventListener('click', function () { setEl.style.display = 'block'; });
+document.getElementById('setBack').addEventListener('click', function () { setEl.style.display = 'none'; });
+
 function gameArgs() {
-  if (location.hash.length <= 1) return [];
+  var a = [];
+  if (wideBuild) {
+    var wd = 0;
+    aspectList.forEach(function (x) { if (x[0] === cfgAspect) wd = x[1]; });
+    if (!wd) wd = Math.round(480 * window.innerWidth / window.innerHeight);
+    wd = Math.max(640, Math.min(1120, wd));
+    a.push('--width', String(Math.round(wd / 2) * 2));
+    if (cfgRes !== '1') a.push('--scale', cfgRes);
+  }
+  if (location.hash.length <= 1) return a;
   var n = nameIn.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
   try { localStorage.setItem('sunkr_name', n); } catch (e) {}
-  return n ? ['--username', n] : [];
+  if (n) a.push('--username', n);
+  return a;
 }
 
 try { nameIn.value = (localStorage.getItem('sunkr_name') || '').replace(/[^A-Za-z0-9]/g, ''); } catch (e) {}

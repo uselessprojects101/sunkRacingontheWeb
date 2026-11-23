@@ -460,7 +460,7 @@ static void FUN_0045ca28(int vpIdx)
         screenScale = (float)((sr_double)g_dispHalfWidth * (1.0 / 480.0));    /* 0x52C438 */
     }
     else {
-        screenScale = (float)((sr_double)g_screenWidthFull * (1.0 / 640.0));  /* 0x52C430 */
+        screenScale = (float)g_projScaleX * (1.0f / 512.0f);  /* 0x52C430 */
     }
 
     /* Update scroll counters (skip if paused or snow) — 0x45cacd-b6e */
@@ -792,7 +792,7 @@ static void RenderWaterBandSWRipple(int vpIdx)
         screenScale = (float)((sr_double)g_dispHalfWidth * (1.0 / 480.0));
     }
     else {
-        screenScale = (float)((sr_double)g_screenWidthFull * (1.0 / 640.0));
+        screenScale = (float)g_projScaleX * (1.0f / 512.0f);
     }
 
     int stateOff = vpIdx * 7;

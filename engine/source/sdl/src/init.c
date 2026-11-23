@@ -458,11 +458,11 @@ void AnimateTrackObjects(void)
  */
 void SetScreenDimensions(void)
 {
-    int scaleX = (g_screenWidth << 8) / 0x140;
+    int scaleX = (((g_screenHeight * 4) / 3) << 8) / 0x140;
     DebugLog("SetScreenDimensions\n");
     g_dispCenterX = g_screenWidth / 2;
     g_dispCenterY = g_screenHeight / 2;
-    g_screenScale = g_screenWidth / 0x140;
+    g_screenScale = g_screenHeight / 0xf0;
     g_projScaleX = scaleX;
     g_projScaleY = (g_screenHeight << 8) / 0xf0;
 
@@ -524,7 +524,7 @@ void ComputeViewportBounds(void)
     g_dispClipTop    = g_dispCenterY - g_dispHalfHeight / 2;
     g_dispClipRight  = g_dispCenterX + g_dispHalfWidth / 2 - 1;
     g_dispClipBottom = g_dispCenterY + g_dispHalfHeight / 2 - 1;
-    g_dispProjScaleX = (g_dispHalfWidth << 8) / 0x140;
+    g_dispProjScaleX = (int)((((long long)g_dispHalfWidth * ((g_screenHeight * 4) / 3)) << 8) / ((long long)g_screenWidth * 0x140));
     g_dispProjScaleY = (g_dispHalfHeight << 8) / 0xF0;
 }
 
@@ -742,8 +742,8 @@ void SetupViewportConfig(void)
             }
             else {
                 int vpW = vp[off + 9];
-                vp[off + 4] = (vpW * scaleXref) / scaleXdiv;
-                vp[off + 5] = (vpW * scaleXref) / scaleXdiv;
+                vp[off + 4] = (int)(((long long)vpW * ((g_screenHeight * 4) / 3) * 0x100) / ((long long)g_screenWidth * 0x140));
+                vp[off + 5] = vp[off + 4];
             }
             int vpH;
             if (g_numHumans == 2) {

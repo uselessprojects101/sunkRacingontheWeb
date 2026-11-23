@@ -469,15 +469,13 @@ void BeginFrame(void)
 
     /* Compute largest 4:3 rect that fits in fullW x fullH */
     int vpW, vpH;
-    if (fullW * 3 > fullH * 4) {
-        /* Window is wider than 4:3 — pillarbox (black bars on sides) */
+    if (fullW * g_screenHeight > fullH * g_screenWidth) {
         vpH = fullH;
-        vpW = (fullH * 4) / 3;
+        vpW = (fullH * g_screenWidth) / g_screenHeight;
     }
     else {
-        /* Window is taller than 4:3 — letterbox (black bars top/bottom) */
         vpW = fullW;
-        vpH = (fullW * 3) / 4;
+        vpH = (fullW * g_screenHeight) / g_screenWidth;
     }
     int offsetX = (fullW - vpW) / 2;
     int offsetY = (fullH - vpH) / 2;

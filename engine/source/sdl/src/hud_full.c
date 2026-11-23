@@ -57,6 +57,7 @@ extern void DrawMinimapWidget(char *vpPlayer);
 extern int QueryTerrainHeight(int worldX, int worldZ, int minY);
 
 extern int g_glBackingWidth;
+extern int g_uiAlign;
 extern int g_glBackingHeight;
 
 #ifdef SONICR_DC
@@ -641,7 +642,9 @@ void RenderHUD(void)
 
         if (g_demoMode == DEMO_NONE) {
             int hudPlayerIdx = (g_isNetworkGame != 0) ? g_localPlayerIndex : (int)vp;
+            g_uiAlign = 3;
             DrawTimerAndStatus(hudPlayerIdx);
+            g_uiAlign = 1;
         }
 
         /* Track draws before characters — matches old batch flush order.

@@ -87,3 +87,8 @@
 ## update 16
 - lan fix (net.js v3): returning guests keep their slot (random id), guests that have not joined the game are not counted, silent guests are dropped after 20 seconds
 - fixes duplicate or phantom players in the lobby after the first race
+
+## update 17
+- widescreen test page at /wide/: wider 3d view, menus centered, race hud aligned left, center and right
+- settings button on /wide/: aspect ratio (auto, 4:3, 16:10, 16:9, 21:9) and resolution (1x, 2x, 3x), applied on play
+- main page and /classic/ unchanged at 4:3
