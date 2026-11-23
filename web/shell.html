@@ -55,7 +55,8 @@ body.wide #setBtn { display: block; }
 .setRow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
 .opt { min-width: 90px; height: 40px; font-size: 14px; color: #666; border-color: #333; border-width: 3px; padding: 0 12px; }
 .opt.sel { color: #fff; border-color: #fff; }
-#setNote { color: #666; font-size: 13px; max-width: 90vw; text-align: center; margin-top: 24px; }
+.act { min-width: 130px; height: 40px; font-size: 14px; color: #aaa; border-color: #666; border-width: 3px; padding: 0 12px; }
+#setMsg { color: #888; font-size: 13px; min-height: 18px; text-align: center; }
 #setBack { position: absolute; left: 8px; bottom: 8px; width: 90px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
 </style>
 </head>
@@ -101,7 +102,13 @@ body.wide #setBtn { display: block; }
     <div class="setRow" id="aspectRow"></div>
     <div class="setLabel">resolution</div>
     <div class="setRow" id="resRow"></div>
-    <div id="setNote">applies when you press play. to change it later, reload the page.</div>
+    <div class="setLabel">saves</div>
+    <div class="setRow">
+      <button id="expBtn" class="btn act">export save</button>
+      <button id="impBtn" class="btn act">import save</button>
+    </div>
+    <input type="file" id="impFile" accept=".zip,.sav" multiple style="display:none">
+    <div id="setMsg"></div>
   </div>
   <button id="setBack" class="btn">back</button>
 </div>
@@ -288,7 +295,7 @@ function updateProfile() {
 
 window.addEventListener('hashchange', updateProfile);
 
-var wideBuild = location.pathname.indexOf('/wide/') >= 0;
+var wideBuild = location.pathname.indexOf('/classic/') < 0;
 if (wideBuild) document.body.classList.add('wide');
 var aspectList = [['auto', 0, 'auto'], ['4:3', 640, '4:3'], ['16:10', 768, '16:10'], ['16:9', 854, '16:9'], ['21:9', 1120, '21:9']];
 var resList = [['1', 1, '1x (480p)'], ['2', 2, '2x (960p)'], ['3', 3, '3x (1440p)']];
@@ -325,6 +332,182 @@ function renderSettings() {
 renderSettings();
 document.getElementById('setBtn').addEventListener('click', function () { setEl.style.display = 'block'; });
 document.getElementById('setBack').addEventListener('click', function () { setEl.style.display = 'none'; });
+var setMsg = document.getElementById('setMsg');
+var impFile = document.getElementById('impFile');
+var ghostTracks = ['ISLAND', 'CITY', 'RUIN', 'FACTORY', 'EMERALD'];
+var ghostChars = ['SONIC.GHO', 'TAILS.GHO', 'KNUCKLES.GHO', 'AMY.GHO', 'EGGMAN.GHO', 'METAL.GHO', 'TDOLL.GHO', 'MKNUX.GHO', 'EGROBO.GHO', 'SUPER.GHO'];
+function savePathFor(name) {
+  var p = name.replace(/\\/g, '/').split('/').filter(Boolean).map(function (x) { return x.toUpperCase(); });
+  var n = p.length;
+  if (n >= 1 && /^R(0[1-9]|10)\.SAV$/.test(p[n - 1]) && (n === 1 || p[n - 2] === 'SAVE')) return '/game/SAVE/' + p[n - 1];
+  if (n >= 4 && p[n - 4] === 'GHOST' && (p[n - 3] === 'NORMAL' || p[n - 3] === 'REVERSE') && ghostTracks.indexOf(p[n - 2]) >= 0 && ghostChars.indexOf(p[n - 1]) >= 0) {
+    return '/game/GHOST/' + p[n - 3] + '/' + p[n - 2] + '/' + p[n - 1];
+  }
+  return '';
+}
+var crcTable = null;
+function crc32(u8) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      crcTable[n] = c >>> 0;
+    }
+  }
+  var crc = 0xFFFFFFFF;
+  for (var i = 0; i < u8.length; i++) crc = crcTable[(crc ^ u8[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(entries) {
+  var enc = new TextEncoder();
+  var d = new Date();
+  var dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  var dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  var parts = [];
+  var central = [];
+  var offset = 0;
+  entries.forEach(function (e) {
+    var nm = enc.encode(e.name);
+    var crc = crc32(e.data);
+    var lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(6, 0x0800, true);
+    lh.setUint16(10, dosTime, true);
+    lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, e.data.length, true);
+    lh.setUint32(22, e.data.length, true);
+    lh.setUint16(26, nm.length, true);
+    parts.push(new Uint8Array(lh.buffer), nm, e.data);
+    var ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, e.data.length, true);
+    ch.setUint32(24, e.data.length, true);
+    ch.setUint16(28, nm.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nm);
+    offset += 30 + nm.length + e.data.length;
+  });
+  var csize = 0;
+  central.forEach(function (c) { csize += c.length; });
+  var end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, entries.length, true);
+  end.setUint16(10, entries.length, true);
+  end.setUint32(12, csize, true);
+  end.setUint32(16, offset, true);
+  return new Blob(parts.concat(central, [new Uint8Array(end.buffer)]), { type: 'application/zip' });
+}
+async function zipEntries(file) {
+  var size = file.size;
+  var tailLen = Math.min(size, 65557);
+  var tail = new DataView(await file.slice(size - tailLen, size).arrayBuffer());
+  var e = -1;
+  for (var i = tailLen - 22; i >= 0; i--) {
+    if (tail.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  }
+  if (e < 0) throw new Error('not a zip file');
+  var count = tail.getUint16(e + 10, true);
+  var cdSize = tail.getUint32(e + 12, true);
+  var cdOff = tail.getUint32(e + 16, true);
+  if (cdOff === 0xFFFFFFFF || count === 0xFFFF) throw new Error('zip is too large');
+  var cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  var out = [];
+  var p = 0;
+  var dec = new TextDecoder();
+  for (var n = 0; n < count; n++) {
+    if (p + 46 > cd.byteLength || cd.getUint32(p, true) !== 0x02014b50) break;
+    var nlen = cd.getUint16(p + 28, true);
+    var xlen = cd.getUint16(p + 30, true);
+    var clen = cd.getUint16(p + 32, true);
+    out.push({
+      name: dec.decode(new Uint8Array(cd.buffer, p + 46, nlen)),
+      method: cd.getUint16(p + 10, true),
+      csize: cd.getUint32(p + 20, true),
+      off: cd.getUint32(p + 42, true)
+    });
+    p += 46 + nlen + xlen + clen;
+  }
+  return out;
+}
+async function zipData(file, e) {
+  var lh = new DataView(await file.slice(e.off, e.off + 30).arrayBuffer());
+  var start = e.off + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+  var raw = await file.slice(start, start + e.csize).arrayBuffer();
+  if (e.method === 0) return new Uint8Array(raw);
+  if (e.method === 8) {
+    var ds = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(ds).arrayBuffer());
+  }
+  throw new Error('unsupported zip compression');
+}
+document.getElementById('expBtn').addEventListener('click', async function () {
+  setMsg.textContent = '';
+  try {
+    if (!window.SonicRStore || !window.SonicRStore.available()) { setMsg.textContent = 'saves are not available in this browser'; return; }
+    var map = await window.SonicRStore.exportSaves();
+    var entries = [];
+    Object.keys(map).sort().forEach(function (k) {
+      var rel = savePathFor(k);
+      if (!rel) return;
+      var parts = rel.substring(6).split('/');
+      var name = parts.map(function (x, i) { return i < parts.length - 1 ? x.toLowerCase() : x; }).join('/');
+      entries.push({ name: name, data: new Uint8Array(map[k]) });
+    });
+    if (!entries.length) { setMsg.textContent = 'no saves found yet'; return; }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(makeZip(entries));
+    a.download = 'sonicr-saves.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    setMsg.textContent = 'exported ' + entries.length + ' files. extract the zip into your sonic r folder';
+  } catch (e) { setMsg.textContent = 'could not export: ' + e; }
+});
+document.getElementById('impBtn').addEventListener('click', function () { impFile.value = ''; impFile.click(); });
+impFile.addEventListener('change', async function () {
+  var list = Array.prototype.slice.call(impFile.files || []);
+  if (!list.length) return;
+  setMsg.textContent = '';
+  try {
+    var map = {};
+    var skipped = 0;
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      var found = [];
+      if (/\.zip$/i.test(f.name)) {
+        var ents = await zipEntries(f);
+        for (var j = 0; j < ents.length; j++) {
+          var target = savePathFor(ents[j].name);
+          if (target) found.push([target, await zipData(f, ents[j])]);
+        }
+      } else {
+        var t2 = savePathFor(f.name);
+        if (t2) found.push([t2, new Uint8Array(await f.arrayBuffer())]);
+      }
+      found.forEach(function (x) {
+        if (x[0].indexOf('/game/SAVE/') === 0 && x[1].length !== 2216) { skipped++; return; }
+        if (x[1].length > 5000000) { skipped++; return; }
+        map[x[0]] = x[1];
+      });
+    }
+    var n = Object.keys(map).length;
+    if (!n) throw new Error('no saves found. pick a zip of your sonic r folder or r01.sav style files');
+    if (!window.confirm('import ' + n + ' files? saves with the same name in this browser will be replaced.')) return;
+    await window.SonicRStore.importSaves(map);
+    setMsg.textContent = 'imported ' + n + ' files' + (skipped ? ', skipped ' + skipped : '') + ', reloading';
+    setTimeout(function () { location.reload(); }, 800);
+  } catch (e) { setMsg.textContent = 'could not import: ' + e.message; }
+});
 
 function gameArgs() {
   var a = [];

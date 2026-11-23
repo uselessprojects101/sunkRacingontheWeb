@@ -187,8 +187,38 @@
     window.addEventListener('pagehide', run);
   }
 
+  function exportSaves() {
+    return open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var out = {};
+        var req = db.transaction('saves', 'readonly').objectStore('saves').openCursor();
+        req.onsuccess = function () {
+          var cur = req.result;
+          if (!cur) {
+            resolve(out);
+            return;
+          }
+          out[cur.key] = cur.value;
+          cur.continue();
+        };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function importSaves(map) {
+    return open().then(function (db) {
+      var tx = db.transaction('saves', 'readwrite');
+      var st = tx.objectStore('saves');
+      Object.keys(map).forEach(function (k) { st.put(map[k], k); });
+      return txDone(tx);
+    });
+  }
+
   window.SonicRStore = {
     available: available,
+    exportSaves: exportSaves,
+    importSaves: importSaves,
     hasData: hasData,
     saveData: function (path, bytes) { return put('data', path, bytes); },
     markComplete: function () { return put('data', MARK, new Uint8Array([1])); },
