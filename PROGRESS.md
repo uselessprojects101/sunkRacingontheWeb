@@ -98,3 +98,6 @@
 - settings button: aspect ratio (auto, 4:3, 16:10, 16:9, 21:9) and resolution (1x, 2x, 3x), applied on play
 - export save and import save use the windows game layout (save/R01.SAV to R10.SAV and ghost files in a zip), sonicr.inf and joystick.inf are left out on purpose
 - /classic/ unchanged, old /wide/ test page removed
+
+## update 19
+- custom size row in settings (width x height in pixels, 640x480 up to 3840x2160), overrides aspect ratio and resolution

@@ -57,6 +57,11 @@ body.wide #setBtn { display: block; }
 .opt.sel { color: #fff; border-color: #fff; }
 .act { min-width: 130px; height: 40px; font-size: 14px; color: #aaa; border-color: #666; border-width: 3px; padding: 0 12px; }
 #setMsg { color: #888; font-size: 13px; min-height: 18px; text-align: center; }
+.cus { width: 90px; height: 40px; box-sizing: border-box; background: #000; color: #aaa; border: 3px solid #333; font: inherit; font-size: 14px; text-align: center; outline: none; padding: 0; }
+.cus::placeholder { color: #444; }
+.cus:focus { border-color: #777; }
+.cus.on { color: #fff; border-color: #fff; }
+.cusX { color: #666; font-size: 14px; align-self: center; }
 #setBack { position: absolute; left: 8px; bottom: 8px; width: 90px; height: 34px; font-size: 14px; color: #888; border-color: #555; border-width: 3px; }
 </style>
 </head>
@@ -79,7 +84,7 @@ body.wide #setBtn { display: block; }
   <input type="file" id="pick" webkitdirectory multiple hidden>
   <div id="info">
     <div>v0.14</div>
-    <div>updated on 11/17/2026</div>
+    <div>updated on 11/23/2026</div>
     <button id="creditsBtn" class="btn">credits</button>
   </div>
 </div>
@@ -102,6 +107,12 @@ body.wide #setBtn { display: block; }
     <div class="setRow" id="aspectRow"></div>
     <div class="setLabel">resolution</div>
     <div class="setRow" id="resRow"></div>
+    <div class="setLabel">custom</div>
+    <div class="setRow">
+      <input id="cusW" class="cus" inputmode="numeric" maxlength="4" placeholder="1920">
+      <span class="cusX">x</span>
+      <input id="cusH" class="cus" inputmode="numeric" maxlength="4" placeholder="1080">
+    </div>
     <div class="setLabel">saves</div>
     <div class="setRow">
       <button id="expBtn" class="btn act">export save</button>
@@ -307,6 +318,38 @@ try {
   if (aspectList.some(function (x) { return x[0] === savedAspect; })) cfgAspect = savedAspect;
   if (resList.some(function (x) { return x[0] === savedRes; })) cfgRes = savedRes;
 } catch (e) {}
+var cusW = document.getElementById('cusW');
+var cusH = document.getElementById('cusH');
+var cfgCustom = '';
+try {
+  var savedCustom = localStorage.getItem('sunkr_custom');
+  var cm = /^(\d{3,4})x(\d{3,4})$/.exec(savedCustom || '');
+  if (cm && +cm[1] >= 640 && +cm[1] <= 3840 && +cm[2] >= 480 && +cm[2] <= 2160) cfgCustom = savedCustom;
+} catch (e) {}
+if (cfgCustom) {
+  cusW.value = cfgCustom.split('x')[0];
+  cusH.value = cfgCustom.split('x')[1];
+}
+function clearCustom() {
+  cfgCustom = '';
+  cusW.value = '';
+  cusH.value = '';
+  try { localStorage.removeItem('sunkr_custom'); } catch (e) {}
+}
+function onCustomInput() {
+  cusW.value = cusW.value.replace(/\D/g, '');
+  cusH.value = cusH.value.replace(/\D/g, '');
+  var w = parseInt(cusW.value, 10);
+  var h = parseInt(cusH.value, 10);
+  cfgCustom = (w >= 640 && w <= 3840 && h >= 480 && h <= 2160) ? (w + 'x' + h) : '';
+  try {
+    if (cfgCustom) localStorage.setItem('sunkr_custom', cfgCustom);
+    else localStorage.removeItem('sunkr_custom');
+  } catch (e) {}
+  renderSettings();
+}
+cusW.addEventListener('input', onCustomInput);
+cusH.addEventListener('input', onCustomInput);
 var setEl = document.getElementById('set');
 function fillRow(id, list, isSel, pick) {
   var row = document.getElementById(id);
@@ -320,14 +363,18 @@ function fillRow(id, list, isSel, pick) {
   });
 }
 function renderSettings() {
-  fillRow('aspectRow', aspectList, function (k) { return k === cfgAspect; }, function (k) {
+  fillRow('aspectRow', aspectList, function (k) { return !cfgCustom && k === cfgAspect; }, function (k) {
     cfgAspect = k;
+    clearCustom();
     try { localStorage.setItem('sunkr_aspect', k); } catch (e) {}
   });
-  fillRow('resRow', resList, function (k) { return k === cfgRes; }, function (k) {
+  fillRow('resRow', resList, function (k) { return !cfgCustom && k === cfgRes; }, function (k) {
     cfgRes = k;
+    clearCustom();
     try { localStorage.setItem('sunkr_res', k); } catch (e) {}
   });
+  cusW.classList.toggle('on', !!cfgCustom);
+  cusH.classList.toggle('on', !!cfgCustom);
 }
 renderSettings();
 document.getElementById('setBtn').addEventListener('click', function () { setEl.style.display = 'block'; });
@@ -511,7 +558,9 @@ impFile.addEventListener('change', async function () {
 
 function gameArgs() {
   var a = [];
-  if (wideBuild) {
+  if (wideBuild && cfgCustom) {
+    a.push('--size', cfgCustom);
+  } else if (wideBuild) {
     var wd = 0;
     aspectList.forEach(function (x) { if (x[0] === cfgAspect) wd = x[1]; });
     if (!wd) wd = Math.round(480 * window.innerWidth / window.innerHeight);

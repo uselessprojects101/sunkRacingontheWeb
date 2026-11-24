@@ -174,6 +174,8 @@ static int s_cmdUnlock = 0;
 static int s_cmdFullscreen = 0;
 static int s_cmdWidth = 0;
 static int s_cmdScale = 1;
+static int s_cmdSizeW = 0;
+static int s_cmdSizeH = 0;
 static int s_cmdPort = -1;
 static char s_cmdUsername[MM_MAX_USERNAME];
 
@@ -579,6 +581,7 @@ int main(int argc, char *argv[])
         {"username", required_argument, NULL, 'n'},
         {"width", required_argument, NULL, 'w'},
         {"scale", required_argument, NULL, 's'},
+        {"size", required_argument, NULL, 'z'},
         {NULL, 0, NULL, 0}};
     int opt;
     while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
@@ -606,6 +609,20 @@ int main(int argc, char *argv[])
                 if (s_cmdScale < 1) s_cmdScale = 1;
                 if (s_cmdScale > 3) s_cmdScale = 3;
                 break;
+            case 'z': {
+                int cw = 0;
+                int ch = 0;
+                if (sscanf(optarg, "%dx%d", &cw, &ch) == 2 && cw >= 640 && cw <= 3840 && ch >= 480 && ch <= 2160) {
+                    int lw = (480 * cw + ch / 2) / ch;
+                    lw = ((lw + 1) / 2) * 2;
+                    if (lw < 640) lw = 640;
+                    if (lw > 1120) lw = 1120;
+                    s_cmdSizeW = cw;
+                    s_cmdSizeH = ch;
+                    s_cmdWidth = lw;
+                }
+                break;
+            }
             case 'n':
                 strncpy(s_cmdUsername, optarg, sizeof(s_cmdUsername) - 1);
                 s_cmdUsername[sizeof(s_cmdUsername) - 1] = '\0';
@@ -687,7 +704,13 @@ int main(int argc, char *argv[])
      * Creates fullscreen Win32 window sized to full screen.
      * Platform-specific window/GL/audio init lives in platform_*.c. */
     int initWidth = (s_cmdWidth >= 640 && s_cmdWidth <= 1120) ? (s_cmdWidth & ~1) : 640;
-    if (platform_init(initWidth * s_cmdScale, 480 * s_cmdScale, s_cmdFullscreen, "Sonic R") != 0) {
+    int winW = initWidth * s_cmdScale;
+    int winH = 480 * s_cmdScale;
+    if (s_cmdSizeW > 0) {
+        winW = s_cmdSizeW;
+        winH = s_cmdSizeH;
+    }
+    if (platform_init(winW, winH, s_cmdFullscreen, "Sonic R") != 0) {
         return 1;
     }
 
